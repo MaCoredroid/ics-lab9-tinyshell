@@ -327,7 +327,7 @@ void do_bgfg(char **argv)
         }
         else //a foreground
 	{
-            (ceceJob->state)=FG;
+            (Job->state)=FG;
             waitfg(pid);
         }
     
@@ -341,6 +341,11 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    struct job_t* job;
+    while ((job=getjobpid(jobs,pid)) != NULL&&(job->state==FG))
+    {
+	 //just wait and do nothing
+    }
     return;
 }
 
@@ -357,7 +362,32 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+   pid_t pid;
+   int status;
+    while((pid=waitpid(-1,&status,WUNTRACED|WNOHANG))>0)
+    {
+	struct job_t *Jobpointer =getjobpid(jobs,pid);
+        if(Jobpointer!=NULL)
+	{
+            if(WIFEXITED(status))
+	    {
+                deletejob(jobs,pid);
+            }
+            else if(WIFSIGNALED(status))
+            {
+                printf("Job [%d] (%d) terminated by signal %d\n",Jobpointer->jid,pid,WTERMSIG(status));
+               deletejob(jobs,pid);
+            
+            }
+            else if(WIFSTOPPED(status))
+	    {
+                printf("Job [%d] (%d) stopped by signal %d\n",Jobpointer->jid,pid,WSTOPSIG(status));
+                Jobpointer->state=ST;
+            }
+        }
+    }
     return;
+
 }
 
 /* 
@@ -367,6 +397,12 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+    pid_t pid;
+    pid = fgpid(jobs);
+    if(pid!=0)
+    { 
+         kill(-pid,SIGINT);
+    }
     return;
 }
 
@@ -377,6 +413,12 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+    pid_t pid;
+    pid=fgpid(jobs);
+    if(pid!=0)
+    {
+         kill(-pid,SIGTSTP);
+    }
     return;
 }
 
