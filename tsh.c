@@ -178,7 +178,34 @@ void eval(char *cmdline)
     }
     else
     {
-         	
+        sigemptyset(&mask);
+        sigaddset(&mask, SIGCHLD);
+        sigprocmask(SIG_BLOCK, &mask, NULL);// block SIGCHLD signals
+        if((pid = fork()) == 0)
+        {   /* child runs user job */  
+            sigprocmask(SIG_UNBLOCK, &mask, NULL);
+            if(setpgid(0, 0) < 0) 
+            { /* put the child in a new process group */  
+                unix_error("eval: setpgid failed");  
+            }  
+            /* run the command */  
+            if(execvp(argv[0], argv) < 0) 
+            {  
+                printf("%s: Command not found\n", argv[0]);  
+                exit(1); /* exit the child process */  
+            }  
+        } 
+        else 
+        { /* parent */  
+            if(!bg) addjob(jobs, pid, FG, cmdline);  
+            else addjob(jobs, pid, BG, cmdline);  
+            sigprocmask(SIG_UNBLOCK, &mask, NULL);
+            if (!bg) waitfg(pid); 
+            else 
+            {
+                printf("[%d] (%d) %s", pid2jid(pid), pid, cmdline);  
+            }  
+        }	
     }
 }
 
@@ -268,6 +295,7 @@ int builtin_cmd(char **argv)
 /* 
  * do_bgfg - Execute the builtin bg and fg commands
  */
+
 void do_bgfg(char **argv) 
 {
     int jid=0;//job id
@@ -278,10 +306,8 @@ void do_bgfg(char **argv)
     {
         printf("%s command requires PID or %%jobid argument\n",argv[0]);
     }
-    else 
+    else  if(*argv[1]=='%')//it is a jid
     {
-        if(*argv[1]=='%')//it is a jid
-	{
             sscanf(argv[1],"%%%d%n",&jid,&flag);
             if(flag==0)
 	    {
@@ -295,9 +321,9 @@ void do_bgfg(char **argv)
 	            printf("%%%d: No such job\n",jid);
 		}
 	    }
-        }
-	else//it is a pid
-	{
+    }
+    else//it is a pid
+    {
             sscanf(argv[1],"%d%n",&pid, &flag);
             if(flag==0)
 	    {
@@ -311,11 +337,11 @@ void do_bgfg(char **argv)
 		    printf("(%d): No such process\n",pid);
              	}
             }
-	}
-        if(Job!=NULL)//record pid
-	{
-            pid=Job->pid;
-	}
+    }
+    if(Job!=NULL)//record pid
+    {
+        pid=Job->pid;
+	
         if((Job->state)==ST)
 	{
 	    kill(-pid,SIGCONT);
@@ -334,7 +360,7 @@ void do_bgfg(char **argv)
         
     }
 
-}
+} 
 
 /* 
  * waitfg - Block until process pid is no longer the foreground process
