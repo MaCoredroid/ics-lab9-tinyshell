@@ -2,6 +2,7 @@
  * tsh - A tiny shell program with job control
  * 
  * <Put your name and login ID here>
+ *   login ID:ics517021910070 name:马致远
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -165,8 +166,22 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
-    return;
+    char *argv[MAXARGS];    /* argv for command */  
+    char buf[MAXLINE];
+    int bg;             /* should the job run in bg or fg? */  
+    sigset_t mask;
+    pid_t pid;          /* process id */  
+    bg = parseline(cmdline, argv); 
+    if(builtin_cmd(argv))//if it is a builtin(quit or jobs or fg or bg)
+    {
+	return;
+    }
+    else
+    {
+	
+    }
 }
+
 
 /* 
  * parseline - Parse the command line and build the argv array.
@@ -220,9 +235,9 @@ int parseline(const char *cmdline, char **argv)
 
     /* should the job run in the background? */
     if ((bg = (*argv[argc-1] == '&')) != 0) {
-	argv[--argc] = NULL;
+	argv[--argc] = NULL;//delete the '&'
     }
-    return bg;
+    return bg;//
 }
 
 /* 
@@ -231,6 +246,19 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+    if(!strcmp(argv[0],"quit"))
+    {
+	exit(0);
+    }
+    if(!strcmp(argv[0],"jobs"))
+    {
+	listjobs(jobs);
+    }
+    if(!strcmp(argv[0],"fg")||!strcmp(argv[0],"bg"))
+    {
+	do_bgfg(argv);
+    }
+
     return 0;     /* not a builtin command */
 }
 
