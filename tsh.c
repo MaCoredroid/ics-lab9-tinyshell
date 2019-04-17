@@ -178,7 +178,7 @@ void eval(char *cmdline)
     }
     else
     {
-	
+         	
     }
 }
 
@@ -246,19 +246,22 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
-    if(!strcmp(argv[0],"quit"))
+    if(!strcmp(argv[0],"quit"))//it is a "quit"
     {
 	exit(0);
+	return 1;
     }
-    if(!strcmp(argv[0],"jobs"))
+    if(!strcmp(argv[0],"jobs"))//it is a "jobs"
     {
 	listjobs(jobs);
+	return 1;
     }
-    if(!strcmp(argv[0],"fg")||!strcmp(argv[0],"bg"))
+    if(!strcmp(argv[0],"fg")||!strcmp(argv[0],"bg"))//it is a "fg" or "bg"
     {
 	do_bgfg(argv);
+	return 1;
     }
-
+    
     return 0;     /* not a builtin command */
 }
 
@@ -267,7 +270,70 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-    return;
+    int jid=0;//job id
+    pid_t pid=0;
+    int flag=0;
+    struct job_t *Job=NULL;
+    if(argv[1]==NULL)
+    {
+        printf("%s command requires PID or %%jobid argument\n",argv[0]);
+    }
+    else 
+    {
+        if(*argv[1]=='%')//it is a jid
+	{
+            sscanf(argv[1],"%%%d%n",&jid,&flag);
+            if(flag==0)
+	    {
+                printf("%s: argument must be a PID or %%jobid\n",argv[0]);
+            }
+            else
+	    {
+                Job=getjobjid(jobs,jid);
+                if(Job==NULL)   
+		{	
+	            printf("%%%d: No such job\n",jid);
+		}
+	    }
+        }
+	else//it is a pid
+	{
+            sscanf(argv[1],"%d%n",&pid, &flag);
+            if(flag==0)
+	    {
+                printf("%s: argument must be a PID or %%jobid\n",argv[0]);
+            }
+            else
+	    {
+                Job=getjobpid(jobs,pid);
+                if(Job==NULL)   
+		{	
+		    printf("(%d): No such process\n",pid);
+             	}
+            }
+	}
+        if(Job!=NULL)//record pid
+	{
+            pid=Job->pid;
+	}
+        if((Job->state)==ST)
+	{
+	    kill(-pid,SIGCONT);
+	}
+        if(!strcmp("bg",argv[0]))// turn a foreground to a background
+	{
+            (Job->state)=BG;
+            printf("[%d] (%d) %s",Job->jid,pid,Job->cmdline);
+        }
+        else //a foreground
+	{
+            (ceceJob->state)=FG;
+            waitfg(pid);
+        }
+    
+        
+    }
+
 }
 
 /* 
